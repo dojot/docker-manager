@@ -1,9 +1,11 @@
-import { ContainerManagerInterface } from "./docker-manager";
-import { ContainerSet } from "./container";
-import Api = require("kubernetes-client");
-import { ManagerConfiguration } from "./config";
 import util = require("util");
 import when = require("when");
+import fs = require("fs");
+import Api = require("kubernetes-client");
+
+import { ContainerManagerInterface } from "./docker-manager";
+import { ContainerSet } from "./container";
+import { ManagerConfiguration, TLSConfiguration } from "./config";
 
 
 interface K8sMetadata {
@@ -19,7 +21,6 @@ interface K8sManifest {
   kind: "Namespace" | "Deployment",
   metadata: K8sMetadata,
   spec: K8sSpec,
-
 }
         
 interface ContainerTemplate {
@@ -30,14 +31,57 @@ interface ContainerTemplate {
 
 class KubernetesManager implements ContainerManagerInterface {
   host: string;
+  token: string;
+  tls: TLSConfiguration;
+  connectionConfig: Api.ApiGroupOptions;
 
   constructor(config: ManagerConfiguration) {
     console.log("Using kubernetes driver.");
+    this.host = "";
+    this.token = "";
+    this.tls = {
+      passphrase: "",
+      ca: "",
+      cert: "",
+      key: ""
+    }
+
     if (config.engine == "kubernetes" && config.kubernetes) {
       this.host = config.kubernetes.url;
+      if (config.kubernetes.securityMode == "token" && config.kubernetes.token) {
+        console.log("Using access token.");
+        try {
+          let tokenFile = fs.readFileSync(config.kubernetes.token);
+          this.token = tokenFile.toString();
+        } catch {
+          // Throw exception or return error
+        } 
+      } else if (config.kubernetes.securityMode == "ca" && config.kubernetes.tls) {
+        console.log("Using regular certificates and cryptographic keys.");
+        try {
+          let caFile = fs.readFileSync(config.kubernetes.tls.ca);
+          let certFile = fs.readFileSync(config.kubernetes.tls.cert);
+          let keyFile = fs.readFileSync(config.kubernetes.tls.key);
+          this.tls.ca = caFile.toString();
+          this.tls.cert = certFile.toString();
+          this.tls.key = keyFile.toString();
+          this.tls.passphrase = config.kubernetes.tls.passphrase;
+        } catch {
+          // Throw exception or return error
+        }
+      }
     } else {
       // Throw exception or return error
-      this.host = "";
+    }
+
+    this.connectionConfig = {
+      url: this.host,
+      version: "v1beta1",
+      ca: this.tls.ca,
+      key: this.tls.key,
+      auth: {
+        bearer: this.token
+      }
     }
   }
 
@@ -77,10 +121,9 @@ class KubernetesManager implements ContainerManagerInterface {
           }
           deploymentObj.spec.template.spec.containers.push(containerTemplate);
       }
-      const ext = new Api.Extensions({
-        url: this.host,
-        version: 'v1beta1'  // Defaults to 'v1beta1'
-      });
+
+      this.connectionConfig.version = "v1beta1"
+      const ext = new Api.Extensions(this.connectionConfig);
 
       ext.namespaces!("default").deployments!.post({ body: deploymentObj}, (error, value) => {
         console.log("Error: " + util.inspect(error, {depth: null}));
@@ -96,10 +139,9 @@ class KubernetesManager implements ContainerManagerInterface {
 
   killAndRemoveContainerSet(containerSetId: string): When.Promise<number> {
     return when.promise((resolve, reject) => {
-      const ext = new Api.Extensions({
-        url: this.host,
-        version: 'v1beta1'  // Defaults to 'v1beta1'
-      });
+
+      this.connectionConfig.version = "v1beta1"
+      const ext = new Api.Extensions(this.connectionConfig);
 
       ext.namespaces!("default").deployments!(containerSetId).delete({ }, (error, value) => {
         console.log("Error: " + util.inspect(error, {depth: null}));
