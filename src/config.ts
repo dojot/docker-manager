@@ -31,17 +31,14 @@ interface KubernetesConfiguration {
   /** 
    * Security modes
    * - none: No security at all.
-   * - token: where to find Kubernetes token (for instance:
-   *   /var/run/secrets/kubernetes.io/serviceaccount/token)
+   * - token: if kubernetes token should be used. This options will use this
+   *   file /var/run/secrets/kubernetes.io/serviceaccount/token.
    * - ca: the TLS structure must be filled.
    */
   securityMode: "none" | "token" | "ca";
 
   /** TLS configuration, used if securityMode == "ca" */
   tls?: TLSConfiguration
-
-  /** Kubernetes Token file location */
-  token?: string;
 }
 
 /**

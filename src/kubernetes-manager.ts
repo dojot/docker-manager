@@ -22,6 +22,8 @@ interface K8sManifest {
   metadata: K8sMetadata,
   spec: K8sSpec,
 }
+
+const K8S_TOKEN_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/token";
         
 interface ContainerTemplate {
   image: string;
@@ -48,10 +50,10 @@ class KubernetesManager implements ContainerManagerInterface {
 
     if (config.engine == "kubernetes" && config.kubernetes) {
       this.host = config.kubernetes.url;
-      if (config.kubernetes.securityMode == "token" && config.kubernetes.token) {
+      if (config.kubernetes.securityMode == "token") {
         console.log("Using access token.");
         try {
-          let tokenFile = fs.readFileSync(config.kubernetes.token);
+          let tokenFile = fs.readFileSync(K8S_TOKEN_FILE);
           this.token = tokenFile.toString();
         } catch {
           // Throw exception or return error
