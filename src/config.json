@@ -6,6 +6,7 @@
     "socket": "/var/run/docker.sock"
   },
   "kubernetes": {
-    "url": "http://localhost:8080"
+    "url": "http://localhost:8080",
+    "securityMode": "none"
   }
 }

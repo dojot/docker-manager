@@ -19,14 +19,25 @@ interface TLSConfiguration {
   cert: string;
   /** Entity key (filename) */
   key: string;
-  /** Key passphrase (if needed) */
+  /** Key passphrase (if needed, or empty string) */
   passphrase: string;
 }
 
 
 interface KubernetesConfiguration {
+  /** Where to connect. */
   url: string;
-  version?: string;
+
+  /** 
+   * Security modes
+   * - none: No security at all.
+   * - token: if kubernetes token should be used. This options will use this
+   *   file /var/run/secrets/kubernetes.io/serviceaccount/token.
+   * - ca: the TLS structure must be filled.
+   */
+  securityMode: "none" | "token" | "ca";
+
+  /** TLS configuration, used if securityMode == "ca" */
   tls?: TLSConfiguration
 }
 
@@ -61,3 +72,4 @@ interface ManagerConfiguration {
 }
 
 export { ManagerConfiguration }
+export { TLSConfiguration }
